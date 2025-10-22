@@ -47,7 +47,7 @@ Proyecto académico con una inversión aproximada de **6.000.000 COP**, incluyen
 
 1. Clona el repositorio:
    ```bash
-   git clone https://github.com/carlosrincon-sys/Los-espinos-glamping
+   git clone https://github.com/Juanmmm07/LosEspinosWeb
 2. Entra a la carpeta del proyecto e instala dependencias:
    flutter pub get
 3. Ejecuta el proyecto en entorno local:
