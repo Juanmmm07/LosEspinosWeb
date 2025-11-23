@@ -7,8 +7,6 @@ class HabitacionService extends ChangeNotifier {
   List<Habitacion> _habitaciones = [];
   bool _isLoading = true;
   StreamSubscription? _subscription;
-  
-  // ✅ NUEVO: Flag para prevenir conflictos durante actualizaciones
   bool _isUpdating = false;
 
   HabitacionService() {
@@ -28,19 +26,18 @@ class HabitacionService extends ChangeNotifier {
     }
   }
 
-  // Escuchar cambios en tiempo real desde Firestore
   void _iniciarEscucha() {
     _subscription = FirestoreStorageService.habitacionesStream().listen(
       (data) {
-        // ✅ CLAVE: No actualizar desde el stream si estamos en medio de una actualización
         if (_isUpdating) {
-          print('⏸️ Actualizando... ignorando cambios del stream temporalmente');
+          print('⏸️ Actualizando... ignorando cambios del stream');
           return;
         }
-        
+
         if (data.isNotEmpty) {
-          _habitaciones = data.map((json) => Habitacion.fromJson(json)).toList();
-          print('📄 Habitaciones actualizadas desde Firestore: ${_habitaciones.length}');
+          _habitaciones =
+              data.map((json) => Habitacion.fromJson(json)).toList();
+          print('📄 Habitaciones actualizadas: ${_habitaciones.length}');
         } else if (_habitaciones.isEmpty) {
           _inicializarDatos();
         }
@@ -48,7 +45,7 @@ class HabitacionService extends ChangeNotifier {
         notifyListeners();
       },
       onError: (e) {
-        print('❌ Error en stream de habitaciones: $e');
+        print('❌ Error en stream: $e');
         _isLoading = false;
         notifyListeners();
       },
@@ -56,7 +53,7 @@ class HabitacionService extends ChangeNotifier {
   }
 
   Future<void> _inicializarDatos() async {
-    print('🆕 Inicializando habitaciones por primera vez...');
+    print('🆕 Inicializando habitaciones...');
     _habitaciones = _habitacionesIniciales();
     await _guardarDatos();
   }
@@ -70,51 +67,71 @@ class HabitacionService extends ChangeNotifier {
     _isUpdating = true;
     _habitaciones.add(habitacion);
     await _guardarDatos();
-    
-    // ✅ Esperar un poco antes de permitir actualizaciones del stream
     await Future.delayed(const Duration(milliseconds: 500));
     _isUpdating = false;
     notifyListeners();
   }
 
-  // ✅ MÉTODO CORREGIDO - Este era el problema principal
-  Future<void> actualizarHabitacion(String id, Habitacion habitacionActualizada) async {
+  Future<void> actualizarHabitacion(
+      String id, Habitacion habitacionActualizada) async {
     final index = _habitaciones.indexWhere((h) => h.id == id);
     if (index != -1) {
-      // ✅ Activar flag para ignorar cambios del stream
       _isUpdating = true;
-      
-      // Actualizar en la lista local
-      _habitaciones[index] = habitacionActualizada;
-      
-      print('🔄 Actualizando habitación $id en Firestore...');
-      
-      // Guardar en Firestore
-      await FirestoreStorageService.actualizarHabitacion(
-        id, 
-        habitacionActualizada.toJson()
-      );
-      
-      print('✅ Habitación $id actualizada correctamente');
-      
-      // ✅ Esperar un poco más para asegurar que Firestore procese el cambio
-      await Future.delayed(const Duration(milliseconds: 800));
-      
-      // ✅ Desactivar flag
-      _isUpdating = false;
-      
-      notifyListeners();
-    }
-  }
 
-  Future<void> toggleActiva(String id) async {
-    final index = _habitaciones.indexWhere((h) => h.id == id);
-    if (index != -1) {
-      final habitacionActualizada = _habitaciones[index].copyWith(
-        activa: !_habitaciones[index].activa,
+      print('📝 Actualizando habitación $id...');
+      print('🖼️ Imágenes totales: ${habitacionActualizada.imagenes.length}');
+
+      // Validar que todas las imágenes sean válidas
+      final imagenesValidas = habitacionActualizada.imagenes.where((img) {
+        return img.isNotEmpty &&
+            (img.startsWith('data:image') ||
+                img.startsWith('assets/') ||
+                img.startsWith('http'));
+      }).toList();
+
+      print('✅ Imágenes válidas: ${imagenesValidas.length}');
+
+      // Actualizar con imágenes válidas
+      final habitacionConImagenesValidas = habitacionActualizada.copyWith(
+        imagenes: imagenesValidas,
       );
-      
-      await actualizarHabitacion(id, habitacionActualizada);
+
+      _habitaciones[index] = habitacionConImagenesValidas;
+
+      // Convertir a JSON y validar
+      final jsonData = habitacionConImagenesValidas.toJson();
+      print(
+          '📦 JSON imagenes length: ${(jsonData['imagenes'] as List).length}');
+
+      // Guardar en Firestore con retry
+      bool guardadoExitoso = false;
+      int intentos = 0;
+
+      while (!guardadoExitoso && intentos < 3) {
+        try {
+          await FirestoreStorageService.actualizarHabitacion(id, jsonData);
+          guardadoExitoso = true;
+          print('✅ Habitación guardada exitosamente (intento ${intentos + 1})');
+        } catch (e) {
+          intentos++;
+          print('⚠️ Error en intento $intentos: $e');
+          if (intentos < 3) {
+            await Future.delayed(Duration(milliseconds: 500 * intentos));
+          } else {
+            print('❌ Falló después de 3 intentos');
+            rethrow;
+          }
+        }
+      }
+
+      // Esperar más tiempo para asegurar sincronización
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      _isUpdating = false;
+
+      notifyListeners();
+    } else {
+      print('❌ Habitación con id $id no encontrada');
     }
   }
 
@@ -138,13 +155,12 @@ class HabitacionService extends ChangeNotifier {
       Habitacion(
         id: 'hab1',
         nombre: 'Cama Matrimonial',
-        descripcion:
-            'Habitación acogedora con cama matrimonial king size, perfecta para parejas que buscan intimidad y confort en medio de la naturaleza.',
+        descripcion: 'Habitación acogedora con cama matrimonial king size.',
         precioBase: 75000,
         capacidad: 2,
         imagenes: [
           'assets/images/glamping_1.jpg',
-          'assets/images/glamping_2.jpg',
+          'assets/images/glamping_2.jpg'
         ],
         activa: true,
         comodidades: ['Wi-Fi', 'Baño privado', 'Terraza', 'Desayuno incluido'],
@@ -153,13 +169,12 @@ class HabitacionService extends ChangeNotifier {
       Habitacion(
         id: 'hab2',
         nombre: 'Camas de Dos Pisos',
-        descripcion:
-            'Espaciosa habitación con camas literas de dos pisos, ideal para familias o grupos de amigos. Ambiente acogedor con todas las comodidades.',
+        descripcion: 'Espaciosa habitación con camas literas.',
         precioBase: 100000,
         capacidad: 4,
         imagenes: [
           'assets/images/glamping_2.jpg',
-          'assets/images/glamping_3.jpg',
+          'assets/images/glamping_3.jpg'
         ],
         activa: true,
         comodidades: [
@@ -174,13 +189,12 @@ class HabitacionService extends ChangeNotifier {
       Habitacion(
         id: 'hab3',
         nombre: 'Zona de Camping',
-        descripcion:
-            'Experiencia auténtica de camping en zona designada con acceso a baños y duchas. Disfruta de la naturaleza bajo las estrellas.',
+        descripcion: 'Experiencia auténtica de camping.',
         precioBase: 20000,
         capacidad: 6,
         imagenes: [
           'assets/images/glamping_3.jpg',
-          'assets/images/glamping_1.jpg',
+          'assets/images/glamping_1.jpg'
         ],
         activa: true,
         comodidades: [

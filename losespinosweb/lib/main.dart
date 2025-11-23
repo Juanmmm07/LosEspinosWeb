@@ -56,11 +56,10 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
 
   Future<void> _initializeServices() async {
     print('🚀 Iniciando servicios...');
-    
+
     await _authService.initialize();
     print('✅ Auth inicializado');
 
-    // Escuchar reservas en tiempo real desde Firestore
     _iniciarEscuchaReservas();
     print('✅ Escucha de reservas iniciada');
 
@@ -152,47 +151,62 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
   }
 
   Future<void> _handleGoogleSignIn(String? tipoHabitacion) async {
-    setState(() => _isLoading = true);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('Iniciando sesión...',
+                    style: TextStyle(color: Colors.green.shade700)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
 
     final success = await _authService.signInWithGoogle();
 
-    setState(() => _isLoading = false);
+    if (mounted) {
+      Navigator.pop(context);
 
-    if (success && mounted) {
-      _mostrarSnackBar(
-        '¡Bienvenido ${_authService.currentUser!.name}!',
-        Colors.green,
-      );
+      if (success) {
+        _mostrarSnackBar(
+            '¡Bienvenido ${_authService.currentUser!.name}!', Colors.green);
 
-      if (tipoHabitacion != null) {
-        setState(() {
-          _tipoHabitacionSeleccionada = tipoHabitacion;
-          _paginaSeleccionada = 2;
-        });
+        if (tipoHabitacion != null) {
+          setState(() {
+            _tipoHabitacionSeleccionada = tipoHabitacion;
+            _paginaSeleccionada = 2;
+          });
+        }
+      } else {
+        _mostrarSnackBar(
+            'Error al iniciar sesión. Intenta nuevamente.', Colors.red);
       }
-    } else if (mounted) {
-      _mostrarSnackBar(
-        'Error al iniciar sesión. Intenta nuevamente.',
-        Colors.red,
-      );
     }
   }
 
   Future<void> _agregarReserva(Reserva reserva) async {
-    // Guardar en Firestore
     await FirestoreStorageService.guardarReserva(reserva.toJson());
-    
+
     setState(() {
       _paginaSeleccionada = 3;
     });
-    
+
     _mostrarSnackBar('¡Reserva confirmada! ID: ${reserva.id}', Colors.green);
   }
 
   Future<void> _cancelarReserva(Reserva reserva) async {
-    // Actualizar estado en Firestore
     await FirestoreStorageService.actualizarReserva(
-      reserva.id, 
+      reserva.id,
       {'estado': 'cancelada'},
     );
   }
@@ -239,25 +253,19 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
                       color: Colors.white.withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.park,
-                      size: 80,
-                      color: Colors.white,
-                    ),
+                    child:
+                        const Icon(Icons.park, size: 80, color: Colors.white),
                   ),
                   const SizedBox(height: 30),
                   const CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 3,
-                  ),
+                      color: Colors.white, strokeWidth: 3),
                   const SizedBox(height: 20),
                   const Text(
                     'Cargando Los Espinos...',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white),
                   ),
                 ],
               ),
@@ -355,6 +363,8 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
     );
   }
 
+  // En main.dart, reemplaza el método _buildDrawer:
+
   Widget _buildDrawer() {
     return Drawer(
       shape: const RoundedRectangleBorder(
@@ -384,10 +394,9 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
                   ? Text(
                       _authService.currentUser!.name[0],
                       style: TextStyle(
-                        fontSize: 24,
-                        color: Colors.green.shade800,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          fontSize: 24,
+                          color: Colors.green.shade800,
+                          fontWeight: FontWeight.bold),
                     )
                   : (!_authService.isLoggedIn
                       ? const Icon(Icons.person, color: Colors.green)
@@ -431,113 +440,22 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
                 if (!_authService.isLoggedIn)
                   ListTile(
                     leading: const Icon(Icons.login, color: Colors.green),
-                    title: const Text(
-                      'Iniciar con Google',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                    title: const Text('Iniciar con Google',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     onTap: () async {
-                      Navigator.pop(context); // Cerrar el drawer primero
-                      
-                      // Mostrar diálogo de carga
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (ctx) => Center(
-                          child: Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const CircularProgressIndicator(),
-                                  const SizedBox(height: 16),
-                                  Text('Iniciando sesión...',
-                                    style: TextStyle(color: Colors.green.shade700)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-
-                      final success = await _authService.signInWithGoogle();
-                      
-                      if (mounted) {
-                        Navigator.pop(context); // Cerrar diálogo de carga
-                        
-                        if (success) {
-                          _mostrarSnackBar(
-                            '¡Bienvenido ${_authService.currentUser!.name}!',
-                            Colors.green,
-                          );
-                        } else {
-                          _mostrarSnackBar(
-                            'Error al iniciar sesión. Intenta nuevamente.',
-                            Colors.red,
-                          );
-                        }
-                      }
+                      Navigator.pop(context);
+                      await _handleGoogleSignIn(null);
                     },
                   )
                 else
                   ListTile(
                     leading: const Icon(Icons.logout, color: Colors.red),
-                    title: const Text(
-                      'Cerrar sesión',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.red),
-                    ),
-                    onTap: () async {
-                      Navigator.pop(context); // Cerrar drawer
-                      
-                      // Mostrar diálogo de confirmación
-                      final confirmar = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          title: Row(
-                            children: [
-                              Icon(Icons.logout, color: Colors.red.shade700),
-                              const SizedBox(width: 12),
-                              const Text('Cerrar sesión'),
-                            ],
-                          ),
-                          content: const Text(
-                            '¿Estás seguro de que deseas cerrar sesión?',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancelar'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red.shade700,
-                              ),
-                              child: const Text(
-                                'Cerrar sesión',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-
-                      if (confirmar == true && mounted) {
-                        await _authService.logout();
-                        if (mounted) {
-                          setState(() {
-                            _paginaSeleccionada = 0; // Volver al inicio
-                          });
-                          _mostrarSnackBar(
-                            'Sesión cerrada correctamente',
-                            Colors.green,
-                          );
-                        }
-                      }
+                    title: const Text('Cerrar sesión',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.red)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showLogoutConfirmDialog();
                     },
                   ),
               ],
@@ -549,6 +467,47 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
               'Versión Web 2.0 - Firestore',
               style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Agregar este nuevo método después de _buildDrawer:
+  void _showLogoutConfirmDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.logout, color: Colors.red.shade700),
+            const SizedBox(width: 12),
+            const Text('Cerrar sesión'),
+          ],
+        ),
+        content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              _authService.logout();
+              Navigator.of(ctx).pop();
+              setState(() {
+                _paginaSeleccionada = 0;
+              });
+              _mostrarSnackBar('Sesión cerrada correctamente', Colors.green);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Cerrar sesión',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -568,10 +527,8 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.green.shade700 : Colors.grey.shade600,
-        ),
+        leading: Icon(icon,
+            color: isSelected ? Colors.green.shade700 : Colors.grey.shade600),
         title: Text(
           text,
           style: TextStyle(

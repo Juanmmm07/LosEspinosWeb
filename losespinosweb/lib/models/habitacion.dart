@@ -20,30 +20,42 @@ class Habitacion {
     required this.comodidades,
     required this.categoria,
   });
+  Map<String, dynamic> toJson() {
+    // Filtrar imágenes válidas antes de guardar
+    final imagenesValidas = imagenes.where((img) {
+      return img.isNotEmpty &&
+          (img.startsWith('data:image') ||
+              img.startsWith('assets/') ||
+              img.startsWith('http'));
+    }).toList();
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'nombre': nombre,
-    'descripcion': descripcion,
-    'precioBase': precioBase,
-    'capacidad': capacidad,
-    'imagenes': imagenes,
-    'activa': activa,
-    'comodidades': comodidades,
-    'categoria': categoria,
-  };
+    print(
+        '🔄 toJson: ${imagenesValidas.length} de ${imagenes.length} imágenes válidas');
+
+    return {
+      'id': id,
+      'nombre': nombre,
+      'descripcion': descripcion,
+      'precioBase': precioBase,
+      'capacidad': capacidad,
+      'imagenes': imagenesValidas,
+      'activa': activa,
+      'comodidades': comodidades,
+      'categoria': categoria,
+    };
+  }
 
   factory Habitacion.fromJson(Map<String, dynamic> json) => Habitacion(
-    id: json['id'],
-    nombre: json['nombre'],
-    descripcion: json['descripcion'],
-    precioBase: json['precioBase'],
-    capacidad: json['capacidad'],
-    imagenes: List<String>.from(json['imagenes']),
-    activa: json['activa'],
-    comodidades: List<String>.from(json['comodidades']),
-    categoria: json['categoria'],
-  );
+        id: json['id'],
+        nombre: json['nombre'],
+        descripcion: json['descripcion'],
+        precioBase: json['precioBase'],
+        capacidad: json['capacidad'],
+        imagenes: List<String>.from(json['imagenes']),
+        activa: json['activa'],
+        comodidades: List<String>.from(json['comodidades']),
+        categoria: json['categoria'],
+      );
 
   Habitacion copyWith({
     String? id,

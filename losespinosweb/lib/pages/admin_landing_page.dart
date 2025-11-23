@@ -7,32 +7,49 @@ import '../services/landing_service.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/image_compression_service.dart';
 
-// Importación condicional para web
 import 'dart:html' as html show FileUploadInputElement, FileReader;
 
 class AdminLandingPage extends StatefulWidget {
   final LandingService landingService;
   final FirebaseAuthService authService;
 
-  const AdminLandingPage(
-      {super.key, required this.landingService, required this.authService});
+  const AdminLandingPage({
+    super.key,
+    required this.landingService,
+    required this.authService,
+  });
 
   @override
   State<AdminLandingPage> createState() => _AdminLandingPageState();
 }
 
 class _AdminLandingPageState extends State<AdminLandingPage> {
-  /// ✅ MÉTODO MEJORADO: Convierte base64 a Uint8List correctamente
+  bool _isUpdating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.landingService.addListener(_onLandingChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.landingService.removeListener(_onLandingChanged);
+    super.dispose();
+  }
+
+  void _onLandingChanged() {
+    if (!_isUpdating && mounted) {
+      setState(() {});
+    }
+  }
+
   Uint8List? _base64ToImage(String base64String) {
     try {
       String cleanBase64 = base64String;
-
-      // Remover prefijo data:image si existe
       if (base64String.contains(',')) {
         cleanBase64 = base64String.split(',').last;
       }
-
-      // Decodificar
       return base64Decode(cleanBase64);
     } catch (e) {
       print('❌ Error al convertir base64: $e');
@@ -40,9 +57,7 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
     }
   }
 
-  /// ✅ MÉTODO MEJORADO: Renderiza imágenes correctamente
   Widget _buildImageWidget(String imagePath) {
-    // Es una imagen base64
     if (imagePath.startsWith('data:image')) {
       final bytes = _base64ToImage(imagePath);
       if (bytes != null) {
@@ -59,7 +74,6 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
       }
     }
 
-    // Es una URL de red
     if (imagePath.startsWith('http')) {
       return Image.network(
         imagePath,
@@ -79,7 +93,6 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
       );
     }
 
-    // Es un asset local
     return Image.asset(
       imagePath,
       fit: BoxFit.cover,
@@ -112,7 +125,7 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_photo_alternate, size: 28),
+            icon: const Icon(Icons.add_circle, size: 28),
             onPressed: _agregarSlide,
             tooltip: 'Agregar nuevo slide',
           )
@@ -120,18 +133,23 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
       ),
       body: Container(
         decoration: BoxDecoration(
-            gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.green.shade100, Colors.white])),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.green.shade100, Colors.white],
+          ),
+        ),
         child: slides.isEmpty
             ? _buildEmptyState()
             : ReorderableListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: slides.length,
-                onReorder: (oldIndex, newIndex) {
-                  widget.landingService.reordenarSlides(oldIndex, newIndex);
-                  setState(() {});
+                onReorder: (oldIndex, newIndex) async {
+                  setState(() => _isUpdating = true);
+                  await widget.landingService
+                      .reordenarSlides(oldIndex, newIndex);
+                  await Future.delayed(const Duration(milliseconds: 500));
+                  setState(() => _isUpdating = false);
                 },
                 itemBuilder: (context, index) =>
                     _buildSlideCard(slides[index], index),
@@ -153,9 +171,10 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         decoration: BoxDecoration(
-            gradient:
-                LinearGradient(colors: [Colors.green.shade50, Colors.white]),
-            borderRadius: BorderRadius.circular(20)),
+          gradient:
+              LinearGradient(colors: [Colors.green.shade50, Colors.white]),
+          borderRadius: BorderRadius.circular(20),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -164,33 +183,35 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
               Row(
                 children: [
                   Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [
-                            Colors.green.shade400,
-                            Colors.green.shade700
-                          ]),
-                          borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.image,
-                          color: Colors.white, size: 24)),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [
+                        Colors.green.shade400,
+                        Colors.green.shade700
+                      ]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child:
+                        const Icon(Icons.image, color: Colors.white, size: 24),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text('Slide ${index + 1}',
                             style: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold)),
                         Text(slide['title'] ?? '',
                             style: TextStyle(
                                 fontSize: 14, color: Colors.grey.shade600)),
-                      ])),
+                      ],
+                    ),
+                  ),
                   Icon(Icons.drag_handle, color: Colors.grey.shade400),
                 ],
               ),
               const Divider(height: 24),
-
-              // ✅ VISTA PREVIA MEJORADA
               Container(
                 height: 200,
                 decoration: BoxDecoration(
@@ -203,7 +224,6 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
                     fit: StackFit.expand,
                     children: [
                       _buildImageWidget(imagePath),
-                      // Overlay con información
                       Positioned(
                         bottom: 0,
                         left: 0,
@@ -211,13 +231,15 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
                                 Colors.transparent,
                                 Colors.black.withOpacity(0.8)
-                              ])),
+                              ],
+                            ),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -239,7 +261,6 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
                           ),
                         ),
                       ),
-                      // Indicador de tamaño si es base64
                       if (isBase64)
                         Positioned(
                           top: 8,
@@ -264,42 +285,43 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Información del tipo de imagen
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                    color:
-                        isBase64 ? Colors.purple.shade50 : Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: isBase64
-                            ? Colors.purple.shade200
-                            : Colors.blue.shade200)),
+                  color: isBase64 ? Colors.purple.shade50 : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: isBase64
+                          ? Colors.purple.shade200
+                          : Colors.blue.shade200),
+                ),
                 child: Row(
                   children: [
-                    Icon(isBase64 ? Icons.cloud_done : Icons.folder,
-                        color: isBase64
-                            ? Colors.purple.shade700
-                            : Colors.blue.shade700,
-                        size: 16),
+                    Icon(
+                      isBase64 ? Icons.cloud_done : Icons.folder,
+                      color: isBase64
+                          ? Colors.purple.shade700
+                          : Colors.blue.shade700,
+                      size: 16,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                              isBase64
-                                  ? 'Imagen Comprimida (Firestore)'
-                                  : 'Asset Local',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  color: isBase64
-                                      ? Colors.purple.shade900
-                                      : Colors.blue.shade900)),
+                            isBase64
+                                ? 'Imagen Comprimida (Firestore)'
+                                : 'Asset Local',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: isBase64
+                                  ? Colors.purple.shade900
+                                  : Colors.blue.shade900,
+                            ),
+                          ),
                           if (!isBase64)
                             Text(
                               imagePath,
@@ -314,36 +336,40 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
-                      child: ElevatedButton.icon(
-                    onPressed: () => _editarSlide(index, slide),
-                    style: ElevatedButton.styleFrom(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _editarSlide(index, slide),
+                      style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue.shade700,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12))),
-                    icon: const Icon(Icons.edit, color: Colors.white, size: 18),
-                    label: const Text('Editar',
-                        style: TextStyle(color: Colors.white)),
-                  )),
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon:
+                          const Icon(Icons.edit, color: Colors.white, size: 18),
+                      label: const Text('Editar',
+                          style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
-                      child: ElevatedButton.icon(
-                    onPressed: widget.landingService.slides.length > 1
-                        ? () => _confirmarEliminar(index)
-                        : null,
-                    style: ElevatedButton.styleFrom(
+                    child: ElevatedButton.icon(
+                      onPressed: widget.landingService.slides.length > 1
+                          ? () => _confirmarEliminar(index)
+                          : null,
+                      style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red.shade700,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12))),
-                    icon:
-                        const Icon(Icons.delete, color: Colors.white, size: 18),
-                    label: const Text('Eliminar',
-                        style: TextStyle(color: Colors.white)),
-                  )),
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.delete,
+                          color: Colors.white, size: 18),
+                      label: const Text('Eliminar',
+                          style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -355,29 +381,38 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
 
   Widget _buildEmptyState() {
     return Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-              color: Colors.green.shade50, shape: BoxShape.circle),
-          child: Icon(Icons.photo_library,
-              size: 80, color: Colors.green.shade300)),
-      const SizedBox(height: 20),
-      const Text('No hay slides',
-          style: TextStyle(
-              fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey)),
-      const SizedBox(height: 24),
-      ElevatedButton.icon(
-          onPressed: _agregarSlide,
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text('Agregar Slide',
-              style: TextStyle(color: Colors.white)),
-          style: ElevatedButton.styleFrom(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+                color: Colors.green.shade50, shape: BoxShape.circle),
+            child: Icon(Icons.photo_library,
+                size: 80, color: Colors.green.shade300),
+          ),
+          const SizedBox(height: 20),
+          const Text('No hay slides',
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _agregarSlide,
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('Agregar Slide',
+                style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green.shade700,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)))),
-    ]));
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _confirmarEliminar(int index) {
@@ -385,32 +420,39 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [
-          Icon(Icons.warning, color: Colors.orange),
-          SizedBox(width: 12),
-          Text('Eliminar Slide')
-        ]),
+        title: const Row(
+          children: [
+            Icon(Icons.warning, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Eliminar Slide'),
+          ],
+        ),
         content: const Text('¿Estás seguro de eliminar este slide?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancelar')),
           ElevatedButton(
-            onPressed: () {
-              widget.landingService.eliminarSlide(index);
+            onPressed: () async {
               Navigator.pop(ctx);
-              setState(() {});
-
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              setState(() => _isUpdating = true);
+              await widget.landingService.eliminarSlide(index);
+              await Future.delayed(const Duration(milliseconds: 500));
+              setState(() => _isUpdating = false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
                     content: const Text('Slide eliminado'),
-                    backgroundColor: Colors.red.shade700));
+                    backgroundColor: Colors.red.shade700,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10))),
+              backgroundColor: Colors.red.shade700,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
             child:
                 const Text('Eliminar', style: TextStyle(color: Colors.white)),
           ),
@@ -428,182 +470,197 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(children: [
-            Container(
+          title: Row(
+            children: [
+              Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                        colors: [Colors.green.shade400, Colors.green.shade700]),
-                    borderRadius: BorderRadius.circular(10)),
+                  gradient: LinearGradient(
+                      colors: [Colors.green.shade400, Colors.green.shade700]),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: const Icon(Icons.add_photo_alternate,
-                    color: Colors.white, size: 24)),
-            const SizedBox(width: 12),
-            const Text('Agregar Slide')
-          ]),
+                    color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Text('Agregar Slide'),
+            ],
+          ),
           content: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-                controller: titleCtrl,
-                decoration: InputDecoration(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
                     labelText: 'Título',
                     prefixIcon: Icon(Icons.title, color: Colors.green.shade700),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                     filled: true,
-                    fillColor: Colors.green.shade50)),
-            const SizedBox(height: 16),
-            TextField(
-                controller: subtitleCtrl,
-                decoration: InputDecoration(
+                    fillColor: Colors.green.shade50,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: subtitleCtrl,
+                  decoration: InputDecoration(
                     labelText: 'Subtítulo',
                     prefixIcon:
                         Icon(Icons.subtitles, color: Colors.green.shade700),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                     filled: true,
-                    fillColor: Colors.green.shade50)),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.purple.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.purple.shade200),
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.image, size: 48, color: Colors.purple.shade700),
-                  const SizedBox(height: 8),
-                  const Text('Imagen del Slide',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  Text('Compresión automática a ~300KB',
-                      style:
-                          TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-                  const SizedBox(height: 12),
-                  if (imagenPreview != null) ...[
-                    Container(
-                      height: 150,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border:
-                            Border.all(color: Colors.purple.shade300, width: 2),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.memory(imagenPreview!, fit: BoxFit.cover),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '✅ ${ImageCompressionService.getTamanoBase64KB(imagenBase64!).toStringAsFixed(0)}KB',
-                      style: TextStyle(
-                          color: Colors.green.shade700,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  ElevatedButton.icon(
-                    onPressed: isLoading
-                        ? null
-                        : () async {
-                            setDialogState(() => isLoading = true);
-
-                            try {
-                              Uint8List? bytes;
-
-                              if (kIsWeb) {
-                                final uploadInput =
-                                    html.FileUploadInputElement();
-                                uploadInput.accept = 'image/*';
-                                uploadInput.click();
-
-                                await uploadInput.onChange.first;
-
-                                final files = uploadInput.files;
-                                if (files != null && files.isNotEmpty) {
-                                  final file = files.first;
-                                  final reader = html.FileReader();
-                                  reader.readAsArrayBuffer(file);
-                                  await reader.onLoad.first;
-                                  bytes = reader.result as Uint8List?;
-                                }
-                              } else {
-                                final picker = ImagePicker();
-                                final XFile? image = await picker.pickImage(
-                                  source: ImageSource.gallery,
-                                  maxWidth: 1920,
-                                  maxHeight: 1080,
-                                );
-
-                                if (image != null) {
-                                  bytes = await image.readAsBytes();
-                                }
-                              }
-
-                              if (bytes != null) {
-                                final base64String =
-                                    await ImageCompressionService
-                                        .comprimirYConvertirABase64(
-                                  bytes,
-                                  maxKB: 300,
-                                );
-
-                                final preview =
-                                    ImageCompressionService.base64ToUint8List(
-                                        base64String);
-
-                                setDialogState(() {
-                                  imagenBase64 = base64String;
-                                  imagenPreview = preview;
-                                  isLoading = false;
-                                });
-                              } else {
-                                setDialogState(() => isLoading = false);
-                              }
-                            } catch (e) {
-                              setDialogState(() => isLoading = false);
-                              if (ctx.mounted) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                    icon: isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.upload_file, color: Colors.white),
-                    label: Text(
-                      isLoading
-                          ? 'Comprimiendo...'
-                          : (imagenPreview == null
-                              ? 'Seleccionar Imagen'
-                              : 'Cambiar Imagen'),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple.shade700,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
+                    fillColor: Colors.green.shade50,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.purple.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.image,
+                          size: 48, color: Colors.purple.shade700),
+                      const SizedBox(height: 8),
+                      const Text('Imagen del Slide',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(height: 4),
+                      Text('Compresión automática a ~300KB',
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 11)),
+                      const SizedBox(height: 12),
+                      if (imagenPreview != null) ...[
+                        Container(
+                          height: 150,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.purple.shade300, width: 2),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child:
+                                Image.memory(imagenPreview!, fit: BoxFit.cover),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '✅ ${ImageCompressionService.getTamanoBase64KB(imagenBase64!).toStringAsFixed(0)}KB',
+                          style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      ElevatedButton.icon(
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                setDialogState(() => isLoading = true);
+
+                                try {
+                                  Uint8List? bytes;
+
+                                  if (kIsWeb) {
+                                    final uploadInput =
+                                        html.FileUploadInputElement();
+                                    uploadInput.accept = 'image/*';
+                                    uploadInput.click();
+
+                                    await uploadInput.onChange.first;
+
+                                    final files = uploadInput.files;
+                                    if (files != null && files.isNotEmpty) {
+                                      final file = files.first;
+                                      final reader = html.FileReader();
+                                      reader.readAsArrayBuffer(file);
+                                      await reader.onLoad.first;
+                                      bytes = reader.result as Uint8List?;
+                                    }
+                                  } else {
+                                    final picker = ImagePicker();
+                                    final XFile? image = await picker.pickImage(
+                                      source: ImageSource.gallery,
+                                      maxWidth: 1920,
+                                      maxHeight: 1080,
+                                    );
+
+                                    if (image != null) {
+                                      bytes = await image.readAsBytes();
+                                    }
+                                  }
+
+                                  if (bytes != null) {
+                                    final base64String =
+                                        await ImageCompressionService
+                                            .comprimirYConvertirABase64(
+                                      bytes,
+                                      maxKB: 300,
+                                    );
+
+                                    final preview = ImageCompressionService
+                                        .base64ToUint8List(base64String);
+
+                                    setDialogState(() {
+                                      imagenBase64 = base64String;
+                                      imagenPreview = preview;
+                                      isLoading = false;
+                                    });
+                                  } else {
+                                    setDialogState(() => isLoading = false);
+                                  }
+                                } catch (e) {
+                                  setDialogState(() => isLoading = false);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text('Error: $e'),
+                                          backgroundColor: Colors.red),
+                                    );
+                                  }
+                                }
+                              },
+                        icon: isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.upload_file,
+                                color: Colors.white),
+                        label: Text(
+                          isLoading
+                              ? 'Comprimiendo...'
+                              : (imagenPreview == null
+                                  ? 'Seleccionar Imagen'
+                                  : 'Cambiar Imagen'),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple.shade700,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ])),
+          ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -611,39 +668,50 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
             ElevatedButton(
               onPressed: (isLoading || imagenBase64 == null)
                   ? null
-                  : () {
-                      if (titleCtrl.text.isEmpty) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                            content: Text('El título es obligatorio'),
-                            backgroundColor: Colors.orange));
+                  : () async {
+                      if (titleCtrl.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('El título es obligatorio'),
+                              backgroundColor: Colors.orange),
+                        );
                         return;
                       }
 
                       final nuevoSlide = {
                         'image': imagenBase64!,
-                        'title': titleCtrl.text,
-                        'subtitle': subtitleCtrl.text
+                        'title': titleCtrl.text.trim(),
+                        'subtitle': subtitleCtrl.text.trim(),
                       };
 
-                      print('🔥 Creando slide: ${nuevoSlide['title']}');
-                      print('🔥 Imagen length: ${nuevoSlide['image']?.length}');
-
-                      widget.landingService.agregarSlide(nuevoSlide);
-
                       Navigator.pop(ctx);
-                      setState(() {});
 
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      setState(() => _isUpdating = true);
+
+                      print('📄 Agregando slide...');
+                      await widget.landingService.agregarSlide(nuevoSlide);
+                      print('✅ Slide agregado, esperando sincronización...');
+
+                      await Future.delayed(const Duration(milliseconds: 1500));
+
+                      setState(() => _isUpdating = false);
+
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
                             content: Text(
-                                '✅ Slide agregado (${ImageCompressionService.getTamanoBase64KB(imagenBase64!).toStringAsFixed(0)}KB)'),
-                            backgroundColor: Colors.green.shade700));
+                              '✅ Slide agregado (${ImageCompressionService.getTamanoBase64KB(imagenBase64!).toStringAsFixed(0)}KB)',
+                            ),
+                            backgroundColor: Colors.green.shade700,
+                          ),
+                        );
                       }
                     },
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade700,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10))),
+                backgroundColor: Colors.green.shade700,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
               child:
                   const Text('Agregar', style: TextStyle(color: Colors.white)),
             ),
@@ -670,201 +738,217 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(children: [
-            Container(
+          title: Row(
+            children: [
+              Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                        colors: [Colors.blue.shade400, Colors.blue.shade700]),
-                    borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.edit, color: Colors.white, size: 24)),
-            const SizedBox(width: 12),
-            const Text('Editar Slide')
-          ]),
+                  gradient: LinearGradient(
+                      colors: [Colors.blue.shade400, Colors.blue.shade700]),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.edit, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Text('Editar Slide'),
+            ],
+          ),
           content: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-                controller: titleCtrl,
-                decoration: InputDecoration(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
                     labelText: 'Título',
                     prefixIcon: Icon(Icons.title, color: Colors.blue.shade700),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                     filled: true,
-                    fillColor: Colors.blue.shade50)),
-            const SizedBox(height: 16),
-            TextField(
-                controller: subtitleCtrl,
-                decoration: InputDecoration(
+                    fillColor: Colors.blue.shade50,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: subtitleCtrl,
+                  decoration: InputDecoration(
                     labelText: 'Subtítulo',
                     prefixIcon:
                         Icon(Icons.subtitles, color: Colors.blue.shade700),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                     filled: true,
-                    fillColor: Colors.blue.shade50)),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.purple.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.purple.shade200),
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.image, size: 48, color: Colors.purple.shade700),
-                  const SizedBox(height: 8),
-                  const Text('Imagen del Slide',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  Text('Compresión automática a ~300KB',
-                      style:
-                          TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-                  const SizedBox(height: 12),
-                  if (imagenPreview != null) ...[
-                    Container(
-                      height: 150,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border:
-                            Border.all(color: Colors.purple.shade300, width: 2),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.memory(imagenPreview!, fit: BoxFit.cover),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (imagenBase64.startsWith('data:image'))
-                      Text(
-                        '✅ ${ImageCompressionService.getTamanoBase64KB(imagenBase64).toStringAsFixed(0)}KB',
-                        style: TextStyle(
-                            color: Colors.green.shade700,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12),
-                      ),
-                    const SizedBox(height: 8),
-                  ] else if (imagenBase64.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              color: Colors.orange.shade700, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Imagen actual: Asset local\n$imagenBase64',
-                              style: TextStyle(
-                                  fontSize: 11, color: Colors.orange.shade900),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  ElevatedButton.icon(
-                    onPressed: isLoading
-                        ? null
-                        : () async {
-                            setDialogState(() => isLoading = true);
-
-                            try {
-                              Uint8List? bytes;
-
-                              if (kIsWeb) {
-                                final uploadInput =
-                                    html.FileUploadInputElement();
-                                uploadInput.accept = 'image/*';
-                                uploadInput.click();
-
-                                await uploadInput.onChange.first;
-
-                                final files = uploadInput.files;
-                                if (files != null && files.isNotEmpty) {
-                                  final file = files.first;
-                                  final reader = html.FileReader();
-                                  reader.readAsArrayBuffer(file);
-                                  await reader.onLoad.first;
-                                  bytes = reader.result as Uint8List?;
-                                }
-                              } else {
-                                final picker = ImagePicker();
-                                final XFile? image = await picker.pickImage(
-                                  source: ImageSource.gallery,
-                                  maxWidth: 1920,
-                                  maxHeight: 1080,
-                                );
-
-                                if (image != null) {
-                                  bytes = await image.readAsBytes();
-                                }
-                              }
-
-                              if (bytes != null) {
-                                final base64String =
-                                    await ImageCompressionService
-                                        .comprimirYConvertirABase64(
-                                  bytes,
-                                  maxKB: 300,
-                                );
-
-                                final preview =
-                                    ImageCompressionService.base64ToUint8List(
-                                        base64String);
-
-                                setDialogState(() {
-                                  imagenBase64 = base64String;
-                                  imagenPreview = preview;
-                                  isLoading = false;
-                                });
-                              } else {
-                                setDialogState(() => isLoading = false);
-                              }
-                            } catch (e) {
-                              setDialogState(() => isLoading = false);
-                              if (ctx.mounted) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                    icon: isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.upload_file, color: Colors.white),
-                    label: Text(
-                      isLoading ? 'Comprimiendo...' : 'Cambiar Imagen',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple.shade700,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
+                    fillColor: Colors.blue.shade50,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.purple.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.image,
+                          size: 48, color: Colors.purple.shade700),
+                      const SizedBox(height: 8),
+                      const Text('Imagen del Slide',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(height: 4),
+                      Text('Compresión automática a ~300KB',
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 11)),
+                      const SizedBox(height: 12),
+                      if (imagenPreview != null) ...[
+                        Container(
+                          height: 150,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.purple.shade300, width: 2),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child:
+                                Image.memory(imagenPreview!, fit: BoxFit.cover),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (imagenBase64.startsWith('data:image'))
+                          Text(
+                            '✅ ${ImageCompressionService.getTamanoBase64KB(imagenBase64).toStringAsFixed(0)}KB',
+                            style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12),
+                          ),
+                        const SizedBox(height: 8),
+                      ] else if (imagenBase64.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  color: Colors.orange.shade700, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Imagen actual: Asset local\n$imagenBase64',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.orange.shade900),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      ElevatedButton.icon(
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                setDialogState(() => isLoading = true);
+
+                                try {
+                                  Uint8List? bytes;
+
+                                  if (kIsWeb) {
+                                    final uploadInput =
+                                        html.FileUploadInputElement();
+                                    uploadInput.accept = 'image/*';
+                                    uploadInput.click();
+
+                                    await uploadInput.onChange.first;
+
+                                    final files = uploadInput.files;
+                                    if (files != null && files.isNotEmpty) {
+                                      final file = files.first;
+                                      final reader = html.FileReader();
+                                      reader.readAsArrayBuffer(file);
+                                      await reader.onLoad.first;
+                                      bytes = reader.result as Uint8List?;
+                                    }
+                                  } else {
+                                    final picker = ImagePicker();
+                                    final XFile? image = await picker.pickImage(
+                                      source: ImageSource.gallery,
+                                      maxWidth: 1920,
+                                      maxHeight: 1080,
+                                    );
+
+                                    if (image != null) {
+                                      bytes = await image.readAsBytes();
+                                    }
+                                  }
+
+                                  if (bytes != null) {
+                                    final base64String =
+                                        await ImageCompressionService
+                                            .comprimirYConvertirABase64(
+                                      bytes,
+                                      maxKB: 300,
+                                    );
+
+                                    final preview = ImageCompressionService
+                                        .base64ToUint8List(base64String);
+
+                                    setDialogState(() {
+                                      imagenBase64 = base64String;
+                                      imagenPreview = preview;
+                                      isLoading = false;
+                                    });
+                                  } else {
+                                    setDialogState(() => isLoading = false);
+                                  }
+                                } catch (e) {
+                                  setDialogState(() => isLoading = false);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text('Error: $e'),
+                                          backgroundColor: Colors.red),
+                                    );
+                                  }
+                                }
+                              },
+                        icon: isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.upload_file,
+                                color: Colors.white),
+                        label: Text(
+                          isLoading ? 'Comprimiendo...' : 'Cambiar Imagen',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple.shade700,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ])),
+          ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -872,40 +956,53 @@ class _AdminLandingPageState extends State<AdminLandingPage> {
             ElevatedButton(
               onPressed: (isLoading || imagenBase64.isEmpty)
                   ? null
-                  : () {
-                      if (titleCtrl.text.isEmpty) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                            content: Text('El título es obligatorio'),
-                            backgroundColor: Colors.orange));
+                  : () async {
+                      if (titleCtrl.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('El título es obligatorio'),
+                              backgroundColor: Colors.orange),
+                        );
                         return;
                       }
 
-                      widget.landingService.actualizarSlide(index, {
+                      Navigator.pop(ctx);
+
+                      setState(() => _isUpdating = true);
+
+                      await widget.landingService.actualizarSlide(index, {
                         'image': imagenBase64,
-                        'title': titleCtrl.text,
-                        'subtitle': subtitleCtrl.text
+                        'title': titleCtrl.text.trim(),
+                        'subtitle': subtitleCtrl.text.trim(),
                       });
 
-                      Navigator.pop(ctx);
-                      setState(() {});
+                      await Future.delayed(const Duration(milliseconds: 1500));
 
-                      final tamano = imagenBase64.startsWith('data:image')
-                          ? ImageCompressionService.getTamanoBase64KB(
-                              imagenBase64)
-                          : 0.0;
+                      setState(() => _isUpdating = false);
 
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(tamano > 0
-                                ? '✅ Slide actualizado (${tamano.toStringAsFixed(0)}KB)'
-                                : '✅ Slide actualizado'),
-                            backgroundColor: Colors.green.shade700));
+                      if (mounted) {
+                        final tamano = imagenBase64.startsWith('data:image')
+                            ? ImageCompressionService.getTamanoBase64KB(
+                                imagenBase64)
+                            : 0.0;
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              tamano > 0
+                                  ? '✅ Slide actualizado (${tamano.toStringAsFixed(0)}KB)'
+                                  : '✅ Slide actualizado',
+                            ),
+                            backgroundColor: Colors.green.shade700,
+                          ),
+                        );
                       }
                     },
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade700,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10))),
+                backgroundColor: Colors.blue.shade700,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
               child:
                   const Text('Guardar', style: TextStyle(color: Colors.white)),
             ),

@@ -118,7 +118,6 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   Future<void> _iniciarSesionGoogle() async {
-    // Mostrar diálogo de carga
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -143,7 +142,7 @@ class _LandingPageState extends State<LandingPage> {
     final success = await widget.authService.signInWithGoogle();
 
     if (mounted) {
-      Navigator.pop(context); // Cerrar diálogo de carga
+      Navigator.pop(context);
 
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -182,7 +181,6 @@ class _LandingPageState extends State<LandingPage> {
     print(
         '🖼️ Renderizando imagen: ${imagePath.substring(0, min(50, imagePath.length))}...');
 
-    // Es una imagen base64
     if (imagePath.startsWith('data:image')) {
       try {
         String cleanBase64 = imagePath;
@@ -209,7 +207,6 @@ class _LandingPageState extends State<LandingPage> {
       }
     }
 
-    // Es una URL de red
     if (imagePath.startsWith('http')) {
       return Image.network(
         imagePath,
@@ -232,7 +229,6 @@ class _LandingPageState extends State<LandingPage> {
       );
     }
 
-    // Es un asset local
     return Image.asset(
       imagePath,
       fit: BoxFit.cover,
@@ -269,13 +265,11 @@ class _LandingPageState extends State<LandingPage> {
       backgroundColor: Colors.grey.shade50,
       body: CustomScrollView(
         slivers: [
-          // Sección hero con carrusel de imágenes
           SliverToBoxAdapter(
             child: SizedBox(
               height: size.height > 600 ? size.height : 600,
               child: Stack(
                 children: [
-                  // Carrusel de imágenes
                   PageView.builder(
                     controller: _pageController,
                     onPageChanged: (index) =>
@@ -285,7 +279,6 @@ class _LandingPageState extends State<LandingPage> {
                       return _buildSlide(widget.landingService.slides[index]);
                     },
                   ),
-                  // Degradado inferior
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -304,7 +297,6 @@ class _LandingPageState extends State<LandingPage> {
                       ),
                     ),
                   ),
-                  // Indicadores y botón
                   Positioned.fill(
                     child: Center(
                       child: Padding(
@@ -313,7 +305,6 @@ class _LandingPageState extends State<LandingPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Spacer(),
-                            // Indicadores de página
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: List.generate(
@@ -334,7 +325,6 @@ class _LandingPageState extends State<LandingPage> {
                               ),
                             ),
                             const SizedBox(height: 40),
-                            // Botón principal
                             ElevatedButton(
                               onPressed: widget.onExplorar,
                               style: ElevatedButton.styleFrom(
@@ -364,14 +354,12 @@ class _LandingPageState extends State<LandingPage> {
               ),
             ),
           ),
-          // Contenido principal
           SliverToBoxAdapter(
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1200),
                 child: Column(
                   children: [
-                    // Sección de características
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           vertical: 80, horizontal: 24),
@@ -398,7 +386,6 @@ class _LandingPageState extends State<LandingPage> {
                         ],
                       ),
                     ),
-                    // Sección de habitaciones
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -427,7 +414,6 @@ class _LandingPageState extends State<LandingPage> {
                         ],
                       ),
                     ),
-                    // Sección de testimonios
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           vertical: 80, horizontal: 24),
@@ -452,7 +438,6 @@ class _LandingPageState extends State<LandingPage> {
               ),
             ),
           ),
-          // Footer
           SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
@@ -768,7 +753,66 @@ class _LandingPageState extends State<LandingPage> {
                 style: TextStyle(color: Colors.white70, fontSize: 16)),
             const SizedBox(height: 30),
             ElevatedButton.icon(
-              onPressed: _iniciarSesionGoogle,
+              onPressed: () async {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (ctx) => Center(
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const CircularProgressIndicator(),
+                            const SizedBox(height: 16),
+                            Text('Iniciando sesión...',
+                                style: TextStyle(color: Colors.green.shade700)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+
+                final success = await widget.authService.signInWithGoogle();
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.check_circle, color: Colors.white),
+                            const SizedBox(width: 12),
+                            Text(
+                                '¡Bienvenido ${widget.authService.currentUser!.name}!'),
+                          ],
+                        ),
+                        backgroundColor: Colors.green.shade700,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.white),
+                            SizedBox(width: 12),
+                            Text('Error al iniciar sesión'),
+                          ],
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
               icon: const Icon(Icons.login),
               label: const Text('Iniciar sesión con Google'),
               style: ElevatedButton.styleFrom(
