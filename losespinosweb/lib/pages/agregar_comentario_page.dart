@@ -40,28 +40,17 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
     super.dispose();
   }
 
-  double _getTamanoTotalMB(List<String> imagenes) {
-    double total = 0;
-    for (var img in imagenes) {
-      total += ImageCompressionService.getTamanoBase64KB(img);
-    }
-    return total / 1024;
-  }
-
-  bool _validarConjunto(List<String> imagenes, {double maxTotalMB = 0.9}) {
-    return _getTamanoTotalMB(imagenes) <= maxTotalMB;
-  }
-
+  /// Selecciona imágenes para WEB con compresión automática
   Future<void> _seleccionarImagenWeb() async {
     if (_imagenesBase64.length >= 4) {
       _mostrarMensaje('Máximo 4 fotos permitidas', Colors.orange);
       return;
     }
 
-    final html.FileUploadInputElement uploadInput =
-        html.FileUploadInputElement();
+    final html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
     uploadInput.accept = 'image/*';
     uploadInput.multiple = true;
+    uploadInput.click();
 
     uploadInput.onChange.listen((e) async {
       final files = uploadInput.files;
@@ -82,14 +71,13 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
 
           final bytes = reader.result as Uint8List;
 
-          final base64String =
-              await ImageCompressionService.comprimirYConvertirABase64(
+          // ✅ COMPRIMIR AUTOMÁTICAMENTE
+          final base64String = await ImageCompressionService.comprimirYConvertirABase64(
             bytes,
             maxKB: 250,
           );
 
-          final uint8List =
-              ImageCompressionService.base64ToUint8List(base64String);
+          final uint8List = ImageCompressionService.base64ToUint8List(base64String);
 
           setState(() {
             _imagenesBase64.add(base64String);
@@ -111,7 +99,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
             : ImageCompressionService.getTamanoBase64KB(_imagenesBase64.last);
 
         _mostrarMensaje(
-          '$agregadas ${agregadas == 1 ? "foto agregada" : "fotos agregadas"} '
+          '✅ $agregadas ${agregadas == 1 ? "foto agregada" : "fotos agregadas"} '
           '(~${tamanoPromedio.toStringAsFixed(0)}KB c/u)',
           Colors.green,
         );
@@ -119,15 +107,14 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
 
       if (errores > 0) {
         _mostrarMensaje(
-          '$errores ${errores == 1 ? "imagen falló" : "imágenes fallaron"}',
+          '❌ $errores ${errores == 1 ? "imagen falló" : "imágenes fallaron"}',
           Colors.red,
         );
       }
     });
-
-    uploadInput.click();
   }
 
+  /// Selecciona una sola imagen para MOBILE
   Future<void> _seleccionarImagen(ImageSource source) async {
     if (_imagenesBase64.length >= 4) {
       _mostrarMensaje('Máximo 4 fotos permitidas', Colors.orange);
@@ -148,14 +135,13 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
 
       final bytes = await image.readAsBytes();
 
-      final base64String =
-          await ImageCompressionService.comprimirYConvertirABase64(
+      // ✅ COMPRIMIR AUTOMÁTICAMENTE
+      final base64String = await ImageCompressionService.comprimirYConvertirABase64(
         bytes,
         maxKB: 250,
       );
 
-      final uint8List =
-          ImageCompressionService.base64ToUint8List(base64String);
+      final uint8List = ImageCompressionService.base64ToUint8List(base64String);
 
       setState(() {
         _imagenesBase64.add(base64String);
@@ -165,7 +151,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
 
       final tamano = ImageCompressionService.getTamanoBase64KB(base64String);
       _mostrarMensaje(
-        'Foto agregada (~${tamano.toStringAsFixed(0)}KB)',
+        '✅ Foto agregada (~${tamano.toStringAsFixed(0)}KB)',
         Colors.green,
       );
     } catch (e) {
@@ -174,6 +160,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
     }
   }
 
+  /// Selecciona múltiples imágenes para MOBILE
   Future<void> _seleccionarMultiplesImagenes() async {
     if (_imagenesBase64.length >= 4) {
       _mostrarMensaje('Máximo 4 fotos permitidas', Colors.orange);
@@ -200,14 +187,13 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
         try {
           final bytes = await image.readAsBytes();
 
-          final base64String =
-              await ImageCompressionService.comprimirYConvertirABase64(
+          // ✅ COMPRIMIR AUTOMÁTICAMENTE
+          final base64String = await ImageCompressionService.comprimirYConvertirABase64(
             bytes,
             maxKB: 250,
           );
 
-          final uint8List =
-              ImageCompressionService.base64ToUint8List(base64String);
+          final uint8List = ImageCompressionService.base64ToUint8List(base64String);
 
           _imagenesBase64.add(base64String);
           _imagenesPreview.add(uint8List);
@@ -222,14 +208,14 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
 
       if (agregadas > 0) {
         _mostrarMensaje(
-          '$agregadas ${agregadas == 1 ? "foto agregada" : "fotos agregadas"}',
+          '✅ $agregadas ${agregadas == 1 ? "foto agregada" : "fotos agregadas"}',
           Colors.green,
         );
       }
 
       if (errores > 0) {
         _mostrarMensaje(
-          '$errores ${errores == 1 ? "imagen falló" : "imágenes fallaron"}',
+          '❌ $errores ${errores == 1 ? "imagen falló" : "imágenes fallaron"}',
           Colors.red,
         );
       }
@@ -281,8 +267,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                       color: Colors.blue.shade100,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child:
-                        Icon(Icons.photo_camera, color: Colors.blue.shade700),
+                    child: Icon(Icons.photo_camera, color: Colors.blue.shade700),
                   ),
                   title: const Text('Tomar foto',
                       style: TextStyle(fontWeight: FontWeight.w600)),
@@ -299,8 +284,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                       color: Colors.purple.shade100,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.photo_library,
-                        color: Colors.purple.shade700),
+                    child: Icon(Icons.photo_library, color: Colors.purple.shade700),
                   ),
                   title: const Text('Seleccionar de galería',
                       style: TextStyle(fontWeight: FontWeight.w600)),
@@ -317,8 +301,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                       color: Colors.green.shade100,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.photo_library_outlined,
-                        color: Colors.green.shade700),
+                    child: Icon(Icons.photo_library_outlined, color: Colors.green.shade700),
                   ),
                   title: const Text('Seleccionar múltiples',
                       style: TextStyle(fontWeight: FontWeight.w600)),
@@ -352,9 +335,10 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
   Future<void> _enviarComentario() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (!_validarConjunto(_imagenesBase64, maxTotalMB: 0.9)) {
+    // Validar tamaño total
+    if (!ImageCompressionService.validarConjunto(_imagenesBase64, maxTotalMB: 0.9)) {
       _mostrarMensaje(
-        'Las imágenes ocupan demasiado espacio. Elimina algunas.',
+        '⚠️ Las imágenes ocupan demasiado espacio. Elimina algunas.',
         Colors.red,
       );
       return;
@@ -381,7 +365,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
     setState(() => _isLoading = false);
 
     if (mounted) {
-      final tamanoTotal = _getTamanoTotalMB(_imagenesBase64);
+      final tamanoTotal = ImageCompressionService.getTamanoTotalMB(_imagenesBase64);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -399,8 +383,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
           ),
           backgroundColor: Colors.green.shade700,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
 
@@ -710,7 +693,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                                   fontSize: 14, fontWeight: FontWeight.w600),
                             ),
                             Text(
-                              '${_getTamanoTotalMB(_imagenesBase64).toStringAsFixed(2)}MB total',
+                              '${ImageCompressionService.getTamanoTotalMB(_imagenesBase64).toStringAsFixed(2)}MB total',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade600,
@@ -856,7 +839,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
   }
 
   String _getCalificacionTexto(double cal) {
-    if (cal >= 4.5) return 'Excelente!';
+    if (cal >= 4.5) return '¡Excelente!';
     if (cal >= 3.5) return 'Muy bueno';
     if (cal >= 2.5) return 'Bueno';
     if (cal >= 1.5) return 'Regular';

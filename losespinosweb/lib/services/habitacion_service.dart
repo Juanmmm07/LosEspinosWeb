@@ -7,6 +7,9 @@ class HabitacionService extends ChangeNotifier {
   List<Habitacion> _habitaciones = [];
   bool _isLoading = true;
   StreamSubscription? _subscription;
+  
+  // ✅ NUEVO: Flag para prevenir conflictos durante actualizaciones
+  bool _isUpdating = false;
 
   HabitacionService() {
     _iniciarEscucha();
@@ -29,11 +32,16 @@ class HabitacionService extends ChangeNotifier {
   void _iniciarEscucha() {
     _subscription = FirestoreStorageService.habitacionesStream().listen(
       (data) {
+        // ✅ CLAVE: No actualizar desde el stream si estamos en medio de una actualización
+        if (_isUpdating) {
+          print('⏸️ Actualizando... ignorando cambios del stream temporalmente');
+          return;
+        }
+        
         if (data.isNotEmpty) {
           _habitaciones = data.map((json) => Habitacion.fromJson(json)).toList();
-          print('🔄 Habitaciones actualizadas desde Firestore: ${_habitaciones.length}');
+          print('📄 Habitaciones actualizadas desde Firestore: ${_habitaciones.length}');
         } else if (_habitaciones.isEmpty) {
-          // Solo inicializar si no hay datos
           _inicializarDatos();
         }
         _isLoading = false;
@@ -59,16 +67,42 @@ class HabitacionService extends ChangeNotifier {
   }
 
   Future<void> agregarHabitacion(Habitacion habitacion) async {
+    _isUpdating = true;
     _habitaciones.add(habitacion);
     await _guardarDatos();
+    
+    // ✅ Esperar un poco antes de permitir actualizaciones del stream
+    await Future.delayed(const Duration(milliseconds: 500));
+    _isUpdating = false;
     notifyListeners();
   }
 
+  // ✅ MÉTODO CORREGIDO - Este era el problema principal
   Future<void> actualizarHabitacion(String id, Habitacion habitacionActualizada) async {
     final index = _habitaciones.indexWhere((h) => h.id == id);
     if (index != -1) {
+      // ✅ Activar flag para ignorar cambios del stream
+      _isUpdating = true;
+      
+      // Actualizar en la lista local
       _habitaciones[index] = habitacionActualizada;
-      await _guardarDatos();
+      
+      print('🔄 Actualizando habitación $id en Firestore...');
+      
+      // Guardar en Firestore
+      await FirestoreStorageService.actualizarHabitacion(
+        id, 
+        habitacionActualizada.toJson()
+      );
+      
+      print('✅ Habitación $id actualizada correctamente');
+      
+      // ✅ Esperar un poco más para asegurar que Firestore procese el cambio
+      await Future.delayed(const Duration(milliseconds: 800));
+      
+      // ✅ Desactivar flag
+      _isUpdating = false;
+      
       notifyListeners();
     }
   }
@@ -76,17 +110,20 @@ class HabitacionService extends ChangeNotifier {
   Future<void> toggleActiva(String id) async {
     final index = _habitaciones.indexWhere((h) => h.id == id);
     if (index != -1) {
-      _habitaciones[index] = _habitaciones[index].copyWith(
+      final habitacionActualizada = _habitaciones[index].copyWith(
         activa: !_habitaciones[index].activa,
       );
-      await _guardarDatos();
-      notifyListeners();
+      
+      await actualizarHabitacion(id, habitacionActualizada);
     }
   }
 
   Future<void> eliminarHabitacion(String id) async {
+    _isUpdating = true;
     _habitaciones.removeWhere((h) => h.id == id);
     await _guardarDatos();
+    await Future.delayed(const Duration(milliseconds: 500));
+    _isUpdating = false;
     notifyListeners();
   }
 

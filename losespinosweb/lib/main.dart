@@ -437,7 +437,46 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
                     ),
                     onTap: () async {
                       Navigator.pop(context); // Cerrar el drawer primero
-                      await _handleGoogleSignIn(null); // Usar el método correcto que ya existe
+                      
+                      // Mostrar diálogo de carga
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (ctx) => Center(
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  const SizedBox(height: 16),
+                                  Text('Iniciando sesión...',
+                                    style: TextStyle(color: Colors.green.shade700)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+
+                      final success = await _authService.signInWithGoogle();
+                      
+                      if (mounted) {
+                        Navigator.pop(context); // Cerrar diálogo de carga
+                        
+                        if (success) {
+                          _mostrarSnackBar(
+                            '¡Bienvenido ${_authService.currentUser!.name}!',
+                            Colors.green,
+                          );
+                        } else {
+                          _mostrarSnackBar(
+                            'Error al iniciar sesión. Intenta nuevamente.',
+                            Colors.red,
+                          );
+                        }
+                      }
                     },
                   )
                 else
@@ -449,10 +488,56 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
                           fontWeight: FontWeight.bold, color: Colors.red),
                     ),
                     onTap: () async {
-                      Navigator.pop(context);
-                      await _authService.logout();
-                      _mostrarSnackBar(
-                          'Sesión cerrada correctamente', Colors.green);
+                      Navigator.pop(context); // Cerrar drawer
+                      
+                      // Mostrar diálogo de confirmación
+                      final confirmar = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          title: Row(
+                            children: [
+                              Icon(Icons.logout, color: Colors.red.shade700),
+                              const SizedBox(width: 12),
+                              const Text('Cerrar sesión'),
+                            ],
+                          ),
+                          content: const Text(
+                            '¿Estás seguro de que deseas cerrar sesión?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancelar'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red.shade700,
+                              ),
+                              child: const Text(
+                                'Cerrar sesión',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmar == true && mounted) {
+                        await _authService.logout();
+                        if (mounted) {
+                          setState(() {
+                            _paginaSeleccionada = 0; // Volver al inicio
+                          });
+                          _mostrarSnackBar(
+                            'Sesión cerrada correctamente',
+                            Colors.green,
+                          );
+                        }
+                      }
                     },
                   ),
               ],

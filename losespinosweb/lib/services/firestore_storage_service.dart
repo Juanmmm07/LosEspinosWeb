@@ -28,6 +28,20 @@ class FirestoreStorageService {
     }
   }
 
+  // ✅ NUEVO MÉTODO: Actualizar una habitación individual
+  static Future<void> actualizarHabitacion(String id, Map<String, dynamic> habitacionData) async {
+    try {
+      await _db.collection('habitaciones').doc(id).set(
+        habitacionData,
+        SetOptions(merge: true), // merge: true para actualizar sin borrar otros campos
+      );
+      print('✅ Habitación $id actualizada en Firestore');
+    } catch (e) {
+      print('❌ Error al actualizar habitación: $e');
+      rethrow;
+    }
+  }
+
   static Future<List<Map<String, dynamic>>?> cargarHabitaciones() async {
     try {
       final snapshot = await _db.collection('habitaciones').get();

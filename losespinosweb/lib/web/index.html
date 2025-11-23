@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Los Espinos Glamping - Reservas">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Los Espinos Glamping - Reservas de habitaciones y experiencias únicas en la naturaleza">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Los Espinos">
@@ -13,22 +14,100 @@
   <title>Los Espinos Glamping</title>
   <link rel="manifest" href="manifest.json">
 
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+    
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+      z-index: 9999;
+    }
+    
+    .loading-logo {
+      width: 100px;
+      height: 100px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 30px;
+      animation: pulse 2s infinite;
+    }
+    
+    .loading-logo svg {
+      width: 60px;
+      height: 60px;
+      fill: white;
+    }
+    
+    .loading-spinner {
+      width: 80px;
+      height: 80px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    .loading-text {
+      margin-top: 20px;
+      color: white;
+      font-size: 18px;
+      font-weight: 500;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+  </style>
+
   <script>
     var serviceWorkerVersion = null;
     var scriptLoaded = false;
+    
     function loadMainDartJs() {
       if (scriptLoaded) return;
       scriptLoaded = true;
       var scriptTag = document.createElement('script');
       scriptTag.src = 'main.dart.js';
       scriptTag.type = 'application/javascript';
+      scriptTag.charset = 'UTF-8';
       document.body.append(scriptTag);
     }
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
         var serviceWorkerUrl = 'flutter_service_worker.js?v=' + serviceWorkerVersion;
-        navigator.serviceWorker.register(serviceWorkerUrl);
+        navigator.serviceWorker.register(serviceWorkerUrl)
+          .then(function(registration) {
+            console.log('Service Worker registrado');
+          })
+          .catch(function(error) {
+            console.log('Error al registrar Service Worker:', error);
+          });
         setTimeout(loadMainDartJs, 4000);
       });
     } else {
@@ -37,46 +116,31 @@
   </script>
 </head>
 <body>
-  <!-- Loading spinner mientras carga Flutter -->
-  <div id="loading" style="
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
-    z-index: 9999;
-  ">
-    <div style="
-      width: 80px;
-      height: 80px;
-      border: 4px solid rgba(255,255,255,0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    "></div>
-    <p style="
-      margin-top: 20px;
-      color: white;
-      font-family: 'Segoe UI', sans-serif;
-      font-size: 18px;
-    ">Cargando Los Espinos...</p>
+  <div id="loading">
+    <div class="loading-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z"/>
+      </svg>
+    </div>
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Cargando Los Espinos...</p>
   </div>
-
-  <style>
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
 
   <script>
     window.addEventListener('flutter-first-frame', function() {
       var loading = document.getElementById('loading');
-      if (loading) loading.remove();
+      if (loading) {
+        loading.style.opacity = '0';
+        loading.style.transition = 'opacity 0.5s';
+        setTimeout(function() {
+          loading.remove();
+        }, 500);
+      }
+    });
+    
+    // Asegurar UTF-8 en todo el documento
+    document.addEventListener('DOMContentLoaded', function() {
+      document.documentElement.lang = 'es';
     });
   </script>
 </body>

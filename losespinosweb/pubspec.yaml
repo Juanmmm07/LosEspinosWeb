@@ -33,3 +33,28 @@ flutter:
   
   assets:
     - assets/images/
+
+# analysis_options.yaml
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: false
+    strict-inference: false
+    strict-raw-types: false
+  
+  errors:
+    invalid_annotation_target: ignore
+    todo: ignore
+    
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+linter:
+  rules:
+    - avoid_print: false
+    - prefer_const_constructors: false
+    - prefer_const_literals_to_create_immutables: false
+    - use_key_in_widget_constructors: false
+    - constant_identifier_names: false

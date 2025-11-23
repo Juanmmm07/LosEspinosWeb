@@ -18,7 +18,8 @@ class LandingService extends ChangeNotifier {
       (data) {
         if (data.isNotEmpty) {
           _slides = data;
-          print('🔄 Landing actualizado desde Firestore: ${_slides.length} slides');
+          print(
+              '📄 Landing actualizado desde Firestore: ${_slides.length} slides');
         } else if (_slides.isEmpty) {
           _inicializarDatos();
         }
@@ -38,19 +39,31 @@ class LandingService extends ChangeNotifier {
   }
 
   Future<void> _guardarDatos() async {
+    print('💾 Guardando ${_slides.length} slides en Firestore...');
     await FirestoreStorageService.guardarLanding(_slides);
+    print('✅ Slides guardados en Firestore');
   }
 
   Future<void> agregarSlide(Map<String, String> slide) async {
+    print('📝 Agregando slide: ${slide['title']}');
+    print('🖼️ Tipo de imagen: ${slide['image']?.substring(0, 30)}...');
+
     _slides.add(slide);
     await _guardarDatos();
+
+    print('✅ Slide agregado. Total: ${_slides.length}');
     notifyListeners();
   }
 
   Future<void> actualizarSlide(int index, Map<String, String> slide) async {
     if (index >= 0 && index < _slides.length) {
+      print('📝 Actualizando slide $index: ${slide['title']}');
+      print('🖼️ Tipo de imagen: ${slide['image']?.substring(0, 30)}...');
+
       _slides[index] = slide;
       await _guardarDatos();
+
+      print('✅ Slide actualizado');
       notifyListeners();
     }
   }
