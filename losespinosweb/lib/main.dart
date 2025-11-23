@@ -80,7 +80,7 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
         setState(() {
           _reservas = data.map((json) => Reserva.fromJson(json)).toList();
         });
-        print('🔄 Reservas actualizadas: ${_reservas.length}');
+        print('📄 Reservas actualizadas: ${_reservas.length}');
       },
       onError: (e) {
         print('❌ Error en stream de reservas: $e');
@@ -436,8 +436,8 @@ class _LosEspinosAppState extends State<LosEspinosApp> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     onTap: () async {
-                      Navigator.pop(context);
-                      await _handleGoogleSignIn(null);
+                      Navigator.pop(context); // Cerrar el drawer primero
+                      await _handleGoogleSignIn(null); // Usar el método correcto que ya existe
                     },
                   )
                 else

@@ -137,5 +137,18 @@ class ImageCompressionService {
         : base64String;
     return base64Decode(sinPrefijo);
   }
-  
+
+  /// Obtiene el tamaño total de múltiples imágenes en MB
+  static double getTamanoTotalMB(List<String> imagenes) {
+    double totalKB = 0;
+    for (var img in imagenes) {
+      totalKB += getTamanoBase64KB(img);
+    }
+    return totalKB / 1024;
+  }
+
+  /// Valida que un conjunto de imágenes no exceda el límite total
+  static bool validarConjunto(List<String> imagenes, {double maxTotalMB = 1.0}) {
+    return getTamanoTotalMB(imagenes) <= maxTotalMB;
+  }
 }

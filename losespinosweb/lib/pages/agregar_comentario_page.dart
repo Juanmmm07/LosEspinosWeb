@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
-import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:html' as html;
+
 import '../services/firebase_auth_service.dart';
 import '../services/comentario_service.dart';
 import '../services/image_compression_service.dart';
@@ -27,10 +27,10 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
   final _formKey = GlobalKey<FormState>();
   final _textoController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
-  
+
   double _calificacion = 5.0;
   bool _isLoading = false;
-  
+
   final List<String> _imagenesBase64 = [];
   final List<Uint8List> _imagenesPreview = [];
 
@@ -40,17 +40,29 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
     super.dispose();
   }
 
-  // ========== VERSIÓN WEB CON COMPRESIÓN ==========
+  double _getTamanoTotalMB(List<String> imagenes) {
+    double total = 0;
+    for (var img in imagenes) {
+      total += ImageCompressionService.getTamanoBase64KB(img);
+    }
+    return total / 1024;
+  }
+
+  bool _validarConjunto(List<String> imagenes, {double maxTotalMB = 0.9}) {
+    return _getTamanoTotalMB(imagenes) <= maxTotalMB;
+  }
+
   Future<void> _seleccionarImagenWeb() async {
     if (_imagenesBase64.length >= 4) {
       _mostrarMensaje('Máximo 4 fotos permitidas', Colors.orange);
       return;
     }
 
-    final html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
+    final html.FileUploadInputElement uploadInput =
+        html.FileUploadInputElement();
     uploadInput.accept = 'image/*';
     uploadInput.multiple = true;
-    
+
     uploadInput.onChange.listen((e) async {
       final files = uploadInput.files;
       if (files == null || files.isEmpty) return;
@@ -67,23 +79,23 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
           final reader = html.FileReader();
           reader.readAsArrayBuffer(file);
           await reader.onLoad.first;
-          
+
           final bytes = reader.result as Uint8List;
-          
-          // ✅ COMPRIMIR IMAGEN AUTOMÁTICAMENTE
-          final base64String = await ImageCompressionService.comprimirYConvertirABase64(
+
+          final base64String =
+              await ImageCompressionService.comprimirYConvertirABase64(
             bytes,
-            maxKB: 250, // 250KB por imagen para comentarios
+            maxKB: 250,
           );
-          
-          // Convertir para preview
-          final uint8List = ImageCompressionService.base64ToUint8List(base64String);
+
+          final uint8List =
+              ImageCompressionService.base64ToUint8List(base64String);
 
           setState(() {
             _imagenesBase64.add(base64String);
             _imagenesPreview.add(uint8List);
           });
-          
+
           agregadas++;
         } catch (e) {
           print('❌ Error procesando imagen: $e');
@@ -92,19 +104,19 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
       }
 
       setState(() => _isLoading = false);
-      
+
       if (agregadas > 0) {
-        final tamanoPromedio = _imagenesBase64.isEmpty 
-            ? 0 
+        final tamanoPromedio = _imagenesBase64.isEmpty
+            ? 0
             : ImageCompressionService.getTamanoBase64KB(_imagenesBase64.last);
-        
+
         _mostrarMensaje(
           '$agregadas ${agregadas == 1 ? "foto agregada" : "fotos agregadas"} '
           '(~${tamanoPromedio.toStringAsFixed(0)}KB c/u)',
           Colors.green,
         );
       }
-      
+
       if (errores > 0) {
         _mostrarMensaje(
           '$errores ${errores == 1 ? "imagen falló" : "imágenes fallaron"}',
@@ -112,11 +124,10 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
         );
       }
     });
-    
+
     uploadInput.click();
   }
 
-  // ========== VERSIÓN MÓVIL CON COMPRESIÓN ==========
   Future<void> _seleccionarImagen(ImageSource source) async {
     if (_imagenesBase64.length >= 4) {
       _mostrarMensaje('Máximo 4 fotos permitidas', Colors.orange);
@@ -136,14 +147,15 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
       setState(() => _isLoading = true);
 
       final bytes = await image.readAsBytes();
-      
-      // ✅ COMPRIMIR IMAGEN AUTOMÁTICAMENTE
-      final base64String = await ImageCompressionService.comprimirYConvertirABase64(
+
+      final base64String =
+          await ImageCompressionService.comprimirYConvertirABase64(
         bytes,
         maxKB: 250,
       );
-      
-      final uint8List = ImageCompressionService.base64ToUint8List(base64String);
+
+      final uint8List =
+          ImageCompressionService.base64ToUint8List(base64String);
 
       setState(() {
         _imagenesBase64.add(base64String);
@@ -162,7 +174,6 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
     }
   }
 
-  // ========== MÚLTIPLES IMÁGENES MÓVIL CON COMPRESIÓN ==========
   Future<void> _seleccionarMultiplesImagenes() async {
     if (_imagenesBase64.length >= 4) {
       _mostrarMensaje('Máximo 4 fotos permitidas', Colors.orange);
@@ -188,14 +199,15 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
 
         try {
           final bytes = await image.readAsBytes();
-          
-          // ✅ COMPRIMIR IMAGEN AUTOMÁTICAMENTE
-          final base64String = await ImageCompressionService.comprimirYConvertirABase64(
+
+          final base64String =
+              await ImageCompressionService.comprimirYConvertirABase64(
             bytes,
             maxKB: 250,
           );
-          
-          final uint8List = ImageCompressionService.base64ToUint8List(base64String);
+
+          final uint8List =
+              ImageCompressionService.base64ToUint8List(base64String);
 
           _imagenesBase64.add(base64String);
           _imagenesPreview.add(uint8List);
@@ -214,7 +226,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
           Colors.green,
         );
       }
-      
+
       if (errores > 0) {
         _mostrarMensaje(
           '$errores ${errores == 1 ? "imagen falló" : "imágenes fallaron"}',
@@ -269,9 +281,11 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                       color: Colors.blue.shade100,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.photo_camera, color: Colors.blue.shade700),
+                    child:
+                        Icon(Icons.photo_camera, color: Colors.blue.shade700),
                   ),
-                  title: const Text('Tomar foto', style: TextStyle(fontWeight: FontWeight.w600)),
+                  title: const Text('Tomar foto',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: const Text('Usa la cámara del dispositivo'),
                   onTap: () {
                     Navigator.pop(context);
@@ -285,9 +299,11 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                       color: Colors.purple.shade100,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.photo_library, color: Colors.purple.shade700),
+                    child: Icon(Icons.photo_library,
+                        color: Colors.purple.shade700),
                   ),
-                  title: const Text('Seleccionar de galería', style: TextStyle(fontWeight: FontWeight.w600)),
+                  title: const Text('Seleccionar de galería',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: const Text('Elige fotos guardadas'),
                   onTap: () {
                     Navigator.pop(context);
@@ -301,9 +317,11 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                       color: Colors.green.shade100,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.photo_library_outlined, color: Colors.green.shade700),
+                    child: Icon(Icons.photo_library_outlined,
+                        color: Colors.green.shade700),
                   ),
-                  title: const Text('Seleccionar múltiples', style: TextStyle(fontWeight: FontWeight.w600)),
+                  title: const Text('Seleccionar múltiples',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: Text('Hasta ${4 - _imagenesBase64.length} fotos'),
                   onTap: () {
                     Navigator.pop(context);
@@ -334,8 +352,7 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
   Future<void> _enviarComentario() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Validar tamaño total de imágenes (máx 900KB total para Firestore)
-    if (!ImageCompressionService.validarConjunto(_imagenesBase64, maxTotalMB: 0.9)) {
+    if (!_validarConjunto(_imagenesBase64, maxTotalMB: 0.9)) {
       _mostrarMensaje(
         'Las imágenes ocupan demasiado espacio. Elimina algunas.',
         Colors.red,
@@ -360,12 +377,12 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
     );
 
     widget.comentarioService.agregarComentario(nuevoComentario);
-    
+
     setState(() => _isLoading = false);
 
     if (mounted) {
-      final tamanoTotal = ImageCompressionService.getTamanoTotalMB(_imagenesBase64);
-      
+      final tamanoTotal = _getTamanoTotalMB(_imagenesBase64);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -382,10 +399,11 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
           ),
           backgroundColor: Colors.green.shade700,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
-      
+
       await Future.delayed(const Duration(milliseconds: 500));
       if (mounted) Navigator.pop(context);
     }
@@ -407,7 +425,6 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -424,7 +441,8 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                         color: Colors.white.withOpacity(0.2),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.rate_review, size: 40, color: Colors.white),
+                      child: const Icon(Icons.rate_review,
+                          size: 40, color: Colors.white),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -454,11 +472,10 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Calificación
               Card(
                 elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -466,11 +483,13 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.star, color: Colors.amber.shade600, size: 24),
+                          Icon(Icons.star,
+                              color: Colors.amber.shade600, size: 24),
                           const SizedBox(width: 8),
                           const Text(
                             'Calificación',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -492,7 +511,9 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                               children: List.generate(
                                 5,
                                 (index) => Icon(
-                                  index < _calificacion ? Icons.star : Icons.star_border,
+                                  index < _calificacion
+                                      ? Icons.star
+                                      : Icons.star_border,
                                   color: Colors.amber.shade600,
                                   size: 36,
                                 ),
@@ -507,7 +528,8 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                               activeColor: Colors.green.shade700,
                               inactiveColor: Colors.green.shade200,
                               label: _calificacion.toStringAsFixed(1),
-                              onChanged: (value) => setState(() => _calificacion = value),
+                              onChanged: (value) =>
+                                  setState(() => _calificacion = value),
                             ),
                             Text(
                               _getCalificacionTexto(_calificacion),
@@ -525,11 +547,10 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Comentario
               Card(
                 elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -537,11 +558,13 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.edit_note, color: Colors.green.shade700, size: 24),
+                          Icon(Icons.edit_note,
+                              color: Colors.green.shade700, size: 24),
                           const SizedBox(width: 8),
                           const Text(
                             'Tu comentario',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -574,11 +597,10 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Agregar fotos con compresión automática
               Card(
                 elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -586,15 +608,18 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.add_photo_alternate, color: Colors.purple.shade700, size: 24),
+                          Icon(Icons.add_photo_alternate,
+                              color: Colors.purple.shade700, size: 24),
                           const SizedBox(width: 8),
                           const Text(
                             'Agregar Fotos',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.purple.shade100,
                               borderRadius: BorderRadius.circular(12),
@@ -620,26 +645,27 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline, color: Colors.blue.shade700, size: 18),
+                            Icon(Icons.info_outline,
+                                color: Colors.blue.shade700, size: 18),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 '✅ Fotos comprimidas automáticamente (~250KB c/u)',
-                                style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.blue.shade900),
                               ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Botón para agregar fotos
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: _imagenesBase64.length < 4 && !_isLoading 
-                              ? _mostrarOpcionesImagen 
-                              : null,
+                          onPressed:
+                              _imagenesBase64.length < 4 && !_isLoading
+                                  ? _mostrarOpcionesImagen
+                                  : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.purple.shade700,
                             disabledBackgroundColor: Colors.grey.shade400,
@@ -657,7 +683,8 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.add_a_photo, color: Colors.white, size: 24),
+                              : const Icon(Icons.add_a_photo,
+                                  color: Colors.white, size: 24),
                           label: Text(
                             _isLoading
                                 ? 'Comprimiendo...'
@@ -672,8 +699,6 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                           ),
                         ),
                       ),
-
-                      // Preview de fotos seleccionadas
                       if (_imagenesPreview.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         Row(
@@ -681,10 +706,11 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                           children: [
                             const Text(
                               'Fotos seleccionadas:',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w600),
                             ),
                             Text(
-                              '${ImageCompressionService.getTamanoTotalMB(_imagenesBase64).toStringAsFixed(2)}MB total',
+                              '${_getTamanoTotalMB(_imagenesBase64).toStringAsFixed(2)}MB total',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade600,
@@ -697,10 +723,13 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                         Wrap(
                           spacing: 12,
                           runSpacing: 12,
-                          children: _imagenesPreview.asMap().entries.map((entry) {
+                          children:
+                              _imagenesPreview.asMap().entries.map((entry) {
                             final index = entry.key;
                             final imageData = entry.value;
-                            final tamano = ImageCompressionService.getTamanoBase64KB(_imagenesBase64[index]);
+                            final tamano =
+                                ImageCompressionService.getTamanoBase64KB(
+                                    _imagenesBase64[index]);
 
                             return Stack(
                               children: [
@@ -742,7 +771,8 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                                         shape: BoxShape.circle,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.2),
+                                            color:
+                                                Colors.black.withOpacity(0.2),
                                             blurRadius: 4,
                                           ),
                                         ],
@@ -759,7 +789,8 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                                   bottom: 4,
                                   left: 4,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: Colors.black54,
                                       borderRadius: BorderRadius.circular(8),
@@ -784,8 +815,6 @@ class _AgregarComentarioPageState extends State<AgregarComentarioPage> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Botón enviar
               SizedBox(
                 width: double.infinity,
                 height: 56,

@@ -1,23 +1,16 @@
 import 'package:flutter/material.dart';
-
 import 'package:flutter/foundation.dart' show kIsWeb;
-
 import 'dart:convert';
-
 import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/habitacion.dart';
-
 import '../services/habitacion_service.dart';
-
 import '../services/firebase_auth_service.dart';
-
 import '../services/image_compression_service.dart';
 
-
-// ImportaciÃ³n condicional para web
-
-import 'dart:html' as html;
+// Importación condicional para web
+import 'dart:html' as html show FileUploadInputElement, FileReader;
 
 
 
@@ -815,7 +808,7 @@ class _AdminHabitacionesPageState extends State<AdminHabitacionesPage> {
 
   // ========== NUEVO DIÃLOGO PARA GESTIONAR IMÃGENES CON SUBIDA ==========
 
- void _gestionarImagenes(Habitacion habitacion) {
+void _gestionarImagenes(Habitacion habitacion) {
   List<String> imagenesActuales = List.from(habitacion.imagenes);
   bool isLoading = false;
   String? mensajeError;
@@ -911,7 +904,7 @@ class _AdminHabitacionesPageState extends State<AdminHabitacionesPage> {
                             int agregadas = 0;
                             int errores = 0;
 
-                            for (var file in files!) {
+                            for (var file in files) {
                               try {
                                 final reader = html.FileReader();
                                 reader.readAsArrayBuffer(file);
@@ -922,7 +915,7 @@ class _AdminHabitacionesPageState extends State<AdminHabitacionesPage> {
                                 // ✅ COMPRIMIR IMAGEN AUTOMÁTICAMENTE
                                 final base64String = await ImageCompressionService.comprimirYConvertirABase64(
                                   bytes,
-                                  maxKB: 200, // 200KB por imagen para habitaciones
+                                  maxKB: 200,
                                 );
                                 
                                 imagenesActuales.add(base64String);
@@ -1096,7 +1089,6 @@ class _AdminHabitacionesPageState extends State<AdminHabitacionesPage> {
                                   ),
                                 ),
                               ),
-                              // Botón eliminar
                               Positioned(
                                 top: 4,
                                 right: 4,
@@ -1116,7 +1108,6 @@ class _AdminHabitacionesPageState extends State<AdminHabitacionesPage> {
                                   ),
                                 ),
                               ),
-                              // Tamaño de la imagen
                               Positioned(
                                 bottom: 4,
                                 left: 4,
@@ -1132,7 +1123,6 @@ class _AdminHabitacionesPageState extends State<AdminHabitacionesPage> {
                                   ),
                                 ),
                               ),
-                              // Número de orden
                               Positioned(
                                 top: 4,
                                 left: 4,
@@ -1152,7 +1142,6 @@ class _AdminHabitacionesPageState extends State<AdminHabitacionesPage> {
               ),
               const SizedBox(height: 16),
 
-              // Botones de acción
               Row(
                 children: [
                   Expanded(
@@ -1166,7 +1155,6 @@ class _AdminHabitacionesPageState extends State<AdminHabitacionesPage> {
                     flex: 2,
                     child: ElevatedButton.icon(
                       onPressed: imagenesActuales.isEmpty || isLoading ? null : () {
-                        // Validar tamaño total antes de guardar
                         if (!ImageCompressionService.validarConjunto(imagenesActuales, maxTotalMB: 1.0)) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
