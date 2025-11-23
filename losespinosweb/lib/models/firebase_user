@@ -1,0 +1,31 @@
+class FirebaseUser {
+  final String id;
+  final String name;
+  final String email;
+  final String? photoURL;
+  final bool isAdmin;
+
+  FirebaseUser({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.photoURL,
+    this.isAdmin = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+    'photoURL': photoURL,
+    'isAdmin': isAdmin,
+  };
+
+  factory FirebaseUser.fromJson(Map<String, dynamic> json) => FirebaseUser(
+    id: json['id'],
+    name: json['name'],
+    email: json['email'],
+    photoURL: json['photoURL'],
+    isAdmin: json['isAdmin'] ?? false,
+  );
+}

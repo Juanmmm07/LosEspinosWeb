@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "572940136466",
+    "project_id": "losespinosweb",
+    "storage_bucket": "losespinosweb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:572940136466:android:58ff235afae44f3495a8cb",
+        "android_client_info": {
+          "package_name": "Los.espinos_web"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "572940136466-cfqqbduaia4u067uocb1e02ngeq0qrdd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBe-UQUl80VMqqylTX_Y5HGdpa9VtxT04E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "572940136466-cfqqbduaia4u067uocb1e02ngeq0qrdd.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
